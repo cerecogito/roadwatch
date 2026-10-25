@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "roadwatch"
+version = "0.2.0"
+description = "RoadWatch: Brooklyn pothole-report risk ranking and capacity-limited inspection worklists"
+requires-python = ">=3.12,<3.13"
+# Direct runtime dependencies, pinned to the versions verified in the project .venv (2026-10-24).
+dependencies = [
+    "pandas==3.1.0",
+    "pyarrow==26.0.0",
+    "geopandas==1.2.0",
+    "shapely==2.2.0",
+    "pyproj==3.8.0",
+    "requests==2.34.2",
+    # Stage 4 modelling (installed 2026-10-24)
+    "scikit-learn==1.9.1",
+    "lightgbm==4.7.0",
+    "scipy==1.18.1",
+    "joblib==1.6.0",
+    "matplotlib==3.11.2",
+    # Stage 6 dashboard (pydeck 0.9.3 and altair 6.3.0 are Streamlit dependencies)
+    "streamlit==1.66.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest==9.1.1"]
+
+[project.scripts]
+roadwatch = "roadwatch.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

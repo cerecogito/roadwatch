@@ -1,0 +1,56 @@
+{
+  "_comment": "Stage 5 decision-engine settings. Capacities are EXPERIMENTAL scenarios (share of eligible blocks inspected per week), not NYC budgets. One inspection slot = one block.",
+  "eligible_blocks": 23448,
+  "capacities": [0.005, 0.01, 0.02],
+  "capacity_rounding": "ceil(share * eligible_blocks)  (Stage 4 convention)",
+  "tie_break": "deterministic splitmix64 hash of (block_id, origin), ascending (Stage 4 convention)",
+  "primary_policy": "multi_block__LGBM",
+  "policies": {
+    "multi_block__LGBM": {"target": "multi_block", "role": "primary ranking model (history + static features)"},
+    "primary__LGBM": {"target": "primary", "role": "strict single-block sensitivity"},
+    "multi_block__LR": {"target": "multi_block", "role": "transparent fallback"},
+    "multi_block__B1_hist_rate": {"target": "multi_block", "role": "historical-rate baseline (lift reference)"},
+    "multi_block__B2_recency": {"target": "multi_block", "role": "recency baseline"},
+    "primary__LR": {"target": "primary", "role": "strict-target comparison"},
+    "primary__B1_hist_rate": {"target": "primary", "role": "strict-target lift reference"},
+    "primary__B2_recency": {"target": "primary", "role": "strict-target recency baseline"}
+  },
+  "lift_reference": {"multi_block": "multi_block__B1_hist_rate", "primary": "primary__B1_hist_rate"},
+  "diversification": {
+    "enabled_by_default": false,
+    "geography": "zip",
+    "max_multiple_of_block_share": 3.0,
+    "rationale": "Pre-specified (not tuned on outcomes): no ZIP may receive more than 3x its share of eligible blocks in a weekly list, limiting concentration driven by reporting propensity while leaving most of the ranking intact."
+  },
+  "policy_design": {
+    "_comment": "Pre-registered BEFORE any validation-period prediction was generated (2026-10-24). Decisions use validation weeks 2025-01-06..2025-06-30 only; test results are reported afterwards and never feed back.",
+    "validation_policies": ["multi_block__LGBM", "primary__LGBM"],
+    "objective": "unique qualifying reports captured, outcome = any candidate block of the report inspected (multi_block label_reports)",
+    "non_adjacent_rule": "adopt for the primary policy only if it increases validation unique-report capture at EVERY configured capacity",
+    "list_comparison": "report whether the strict-target list captures more unique reports than the multi_block list at every capacity"
+  },
+  "dashboard_default_list": "strict_topk",
+  "_dashboard_default_note": "Default inspection list: strict_topk (strict single-block LightGBM top-K; best under expected/assigned capture and never worse than plain top-K under any capture definition). multi_nonadj and strict_nonadj stay selectable comparisons. Display choice only.",
+  "_policy_design_note": "The policy_design rule above was registered before validation predictions existed but after test-period top-K results were available, and its objective (any-candidate capture) favours the non-adjacent rule by construction. Under fractional/assigned-block capture the non-adjacent lists capture fewer reports (see outputs/stage5/capture_definitions.csv after running 'stage5 capture-definitions'). dashboard_default_list options: multi_nonadj | strict_topk | strict_nonadj.",
+  "worklist": {
+    "priority_tiers": {"P1": 0.2, "P2": 0.5, "P3": 1.0},
+    "explain_top_n_features": 3,
+    "export_csv_weeks_for_primary_policy": true,
+    "export_capacity_for_csv": 0.01
+  },
+  "bootstrap": {"resamples": 1000, "seed": 23},
+  "volume": {
+    "target": "unique Brooklyn Street Condition/Pothole reports with Brooklyn evidence created in [t, t+7) (Stage 3 label_weeks.located_brooklyn_reports)",
+    "train_from": "2021-01-04",
+    "validation": ["2025-01-06", "2025-06-30"],
+    "test": ["2025-07-07", "2026-10-12"],
+    "alpha_grid": [0.0, 0.01, 0.1, 1.0],
+    "feature_sets": ["recent", "recent_seasonal", "recent_seasonal_weather"],
+    "interval_quantiles": [0.1, 0.9],
+    "interval_calibration_weeks": 52,
+    "capacity_guidance": {
+      "rule": "pre-specified: if the forecast's upper interval bound exceeds the 75th percentile of the last 52 matured weekly volumes use the high scenario; if the forecast is below their 25th percentile use the low scenario; otherwise the middle scenario",
+      "low": 0.005, "middle": 0.01, "high": 0.02
+    }
+  }
+}

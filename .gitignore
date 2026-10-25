@@ -1,0 +1,31 @@
+# secrets
+.env
+*.token
+
+# environments and caches
+.venv/
+.venv-*/
+.uv-cache/
+.uv-python/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+
+# data: never commit datasets (raw snapshots are reproducible from the APIs via `roadwatch ingest`)
+/*.csv
+data/
+*.parquet
+*.json.gz
+*.csv.gz
+*.joblib
+*.tmp
+*.partial/
+
+# generated outputs, reports and development material (not needed to run the code)
+outputs/
+docs/
+scripts/
+internal/
+.claude/
+CLAUDE.md
