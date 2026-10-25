@@ -130,6 +130,19 @@ data/            created by the pipeline (raw snapshots, processed tables); not 
 outputs/         created by the pipeline (evaluation tables, worklists, dashboard inputs); not committed
 ```
 
+## Optional integrations
+
+Off by default and separate from the pipeline; the application runs unchanged without them. Copy `.env.example` to `.env`, set the flag and credentials for what you want, and install the SDKs with `uv pip install --python .venv\Scripts\python.exe -e ".[integrations]"`.
+
+| Integration | What it adds |
+|---|---|
+| Gemini | Evidence assistant that calls five read-only tools (local fallback without a key) |
+| ElevenLabs | On-request audio narration of a block's existing evidence |
+| Tiger Data | Time-series serving layer (TimescaleDB) with a local fallback |
+| Snowflake | Reproducible, number-checked evidence briefs from a curated table |
+| Solana Devnet | Worklist integrity receipts: `python -I -m roadwatch.integrations.solana_receipt create\|anchor\|verify` |
+
+Integrations never change scores, rankings or worklists. See `src/roadwatch/integrations/` and `.env.example`; deployment files are `Dockerfile` and `docker-compose.yml`.
 ## Limitations
 
 - **Reporting bias.** Labels are 311 reports, so they reflect who reports as well as road condition.
