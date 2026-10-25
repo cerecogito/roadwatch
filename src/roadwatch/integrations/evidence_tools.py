@@ -55,6 +55,12 @@ SCHEMAS = {
     "get_metric_definition": {
         "description": "Plain-language definition of a RoadWatch metric or term.",
         "parameters": {"type": "object", "properties": {"metric": {"type": "string", "enum": list(METRICS)}}, "required": ["metric"]}},
+    "get_block_context": {
+        "description": "Nearby 311 water and sewer complaints for ONE block in a saved week (context only; not used by the ranking model).",
+        "parameters": {"type": "object", "properties": {"block_id": {"type": "integer"}, "week": {"type": "string"}}, "required": ["block_id", "week"]}},
+    "get_multimodal_results": {
+        "description": "Results of the experiment testing whether extra data (infrastructure complaints, other model families) improved prediction.",
+        "parameters": {"type": "object", "properties": {"stage": {"type": "string", "enum": ["validation", "test"]}}, "required": ["stage"]}},
     "get_historical_period_results": {
         "description": "Precision, capture and counts for every list over the whole test period or the March 2026 surge.",
         "parameters": {"type": "object", "properties": {
@@ -185,6 +191,29 @@ class EvidenceTools:
         return {"data": {"period": period, "capacity": capacity, "policies": rows,
                          "caveat": "Precision is measured against each list's own target and is not comparable across targets."},
                 "sources": ["outputs/stage6/policy_summary.csv"]}
+
+    def get_block_context(self, block_id, week) -> dict:
+        from ..multimodal import context as mm
+        d = self._week(week)
+        c = mm.infra_context(self.paths, block_id, d)
+        if c is None:
+            return {"error": "no infrastructure-complaint context is available for this block and week (table not built or block unknown)"}
+        return {"data": {k: v for k, v in c.items() if k != "sources"}, "sources": c["sources"]}
+
+    def get_multimodal_results(self, stage) -> dict:
+        from ..multimodal import context as mm
+        r = mm.experiment_results(self.paths)
+        key = f"{stage}_lgbm"
+        if not r or key not in r:
+            return {"error": f"no multimodal {stage} results have been generated"}
+        res = r[key]
+        sets = {sid: {"average_precision": round(v["average_precision"], 4),
+                      "precision_1pct": round(next(c for c in v["capacities"] if c["capacity"] == 0.01)["precision"], 4),
+                      "paired_precision_diff_vs_F0_ci95": next(c for c in v["capacities"] if c["capacity"] == 0.01).get("d_precision_ci95")}
+                for sid, v in res["sets"].items()}
+        return {"data": {"stage": stage, "window": res["window"], "weeks": res["weeks"], "feature_sets": sets,
+                         "meaning": "F0 = production features; F3 = F0 + 311 water/sewer complaints. A set with a paired CI that includes 0 shows no demonstrated gain. Exploratory on the test period."},
+                "sources": [f"outputs/multimodal/comparison_{stage}_lgbm.json"]}
 
     # ---- single entry point used by every caller (validates, never raises)
     def call(self, name: str, args: dict | None) -> dict:

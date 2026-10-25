@@ -42,8 +42,13 @@ TEMPLATES = {
         f"ORDER BY model, metric LIMIT {MAX_ROWS}",
         ("target", "period"), "Strict or multi-block model metrics against baselines"),
 }
+TEMPLATES["multimodal_vs_baseline"] = (
+    f"SELECT list_name AS feature_set, metric, value_pct, ci_lo_pct, ci_hi_pct, weeks FROM {TABLE} "
+    f"WHERE family = 'multimodal' AND period = ? ORDER BY list_name, metric LIMIT {MAX_ROWS}",
+    ("period",), "Whether extra data (infrastructure complaints) improved on the production features")
 PARAM_ENUMS = {"period": {"test", "validation", "march_2026", "overall", "march_2026_stress"}, "capacity": {"0.5pct", "1pct", "2pct"},
                "target": {"primary", "multi_block"}}
+PARAM_ENUMS["period"] = PARAM_ENUMS["period"] | {"validation_multimodal", "test_multimodal"}
 SYSTEM = ("You write a concise evidence brief (max 150 words) for road-inspection analysts from the JSON rows provided. Use ONLY "
           "numbers present in the rows, quoted exactly. Always state the target (strict single-block vs multi-block) and the capture "
           "definition for every figure. Never claim confirmed defects, prevented failures or savings. State plainly that figures "
@@ -67,6 +72,20 @@ def build_curated(paths: Paths | None = None) -> pd.DataFrame:
         for m, col in (("precision_at_1pct", "top_1pct_precision"), ("report_capture_at_1pct", "top_1pct_report_capture"), ("average_precision", "average_precision")):
             rows.append({"family": "model", "period": r["period"], "capacity": "1pct", "list_name": "", "target": r["variant"], "model": r["model"],
                          "metric": m, "value_pct": round(100 * r[col], 1), "ci_lo_pct": None, "ci_hi_pct": None, "weeks": int(r["weeks"]), "reports": None})
+    for stage in ("validation", "test"):                 # experimental multimodal comparison (exploratory), if it has been run
+        f = root / "outputs" / "multimodal" / f"comparison_{stage}_lgbm.json"
+        if not f.exists():
+            continue
+        res = json.loads(f.read_text(encoding="utf-8"))
+        for sid, v in res["sets"].items():
+            c = next(x for x in v["capacities"] if x["capacity"] == 0.01)
+            ci = c.get("d_precision_ci95") or [None, None]
+            rows.append({"family": "multimodal", "period": f"{stage}_multimodal", "capacity": "1pct", "list_name": sid, "target": "primary", "model": "lightgbm",
+                         "metric": "precision_at_1pct", "value_pct": round(100 * c["precision"], 1), "ci_lo_pct": None if ci[0] is None else round(100 * ci[0], 2),
+                         "ci_hi_pct": None if ci[1] is None else round(100 * ci[1], 2), "weeks": int(res["weeks"]), "reports": None})
+            rows.append({"family": "multimodal", "period": f"{stage}_multimodal", "capacity": "1pct", "list_name": sid, "target": "primary", "model": "lightgbm",
+                         "metric": "average_precision", "value_pct": round(100 * v["average_precision"], 2), "ci_lo_pct": None, "ci_hi_pct": None,
+                         "weeks": int(res["weeks"]), "reports": None})
     df = pd.DataFrame(rows)
     df.insert(0, "evidence_id", [hashlib.sha256(json.dumps(r, sort_keys=True, default=str).encode()).hexdigest()[:16] for r in df.to_dict("records")])
     return df
@@ -81,6 +100,9 @@ def rows_for(df: pd.DataFrame, template: str, params: dict) -> pd.DataFrame:
     if template == "capture_by_period":
         s = df[(df["family"] == "capture") & (df["period"] == params["period"]) & (df["capacity"] == params["capacity"])]
         return s.sort_values(["list_name", "metric"])[["list_name", "metric", "value_pct", "ci_lo_pct", "ci_hi_pct", "weeks", "reports"]].head(MAX_ROWS)
+    if template == "multimodal_vs_baseline":
+        s = df[(df["family"] == "multimodal") & (df["period"] == params["period"])]
+        return s.sort_values(["list_name", "metric"]).rename(columns={"list_name": "feature_set"})[["feature_set", "metric", "value_pct", "ci_lo_pct", "ci_hi_pct", "weeks"]].head(MAX_ROWS)
     s = df[(df["family"] == "model") & (df["target"] == params["target"]) & (df["period"] == params["period"])]
     return s.sort_values(["model", "metric"])[["target", "model", "metric", "value_pct", "weeks"]].head(MAX_ROWS)
 
@@ -100,12 +122,13 @@ def check_request(template: str, params: dict) -> dict:
 # ------------------------------------------------------------------ number verification and provenance
 def verify_numbers(text: str, rows: pd.DataFrame) -> list[str]:
     """Numbers in the brief that are not present in the query rows (empty list = every number traces to the evidence)."""
-    pool = {f"{v:.1f}" for c in ("value_pct", "ci_lo_pct", "ci_hi_pct") if c in rows for v in rows[c].dropna()}
+    vals = [abs(v) for c in ("value_pct", "ci_lo_pct", "ci_hi_pct") if c in rows for v in rows[c].dropna()]      # the number pattern drops minus signs
+    pool = {f"{v:.1f}" for v in vals} | {f"{v:.2f}" for v in vals} | {f"{v:g}" for v in vals}      # the stored precision, as displayed
     pool |= {str(int(v)) for c in ("weeks", "reports") if c in rows for v in rows[c].dropna()} | {f"{int(v):,}" for c in ("reports",) if c in rows for v in rows[c].dropna()}
     bad = []
     for n in NUM.findall(text):
         c = n.rstrip(".,")
-        if c in pool or c.replace(",", "") in pool or len(c) <= 1 or c in {"95", "100", "150"} or re.fullmatch(r"20\d\d", c):
+        if c in pool or c.replace(",", "") in pool or len(c) <= 1 or c in {"95", "100", "150", "311"} or re.fullmatch(r"20\d\d", c):
             continue
         bad.append(n)
     return bad
@@ -124,6 +147,14 @@ def local_brief(df: pd.DataFrame, template: str, params: dict) -> dict:
         text = (f"Unique-report capture, {params['period']} period, {params['capacity']} capacity ({int(rows['weeks'].iloc[0])} weeks, "
                 f"{int(rows['reports'].iloc[0]):,} reports). " + "; ".join(lists) + ". Capture definitions are not interchangeable: any-candidate is "
                 "optimistic, fractional is the expected value, and intersection-node assumes an inspection covers a block's end intersections.")
+    elif template == "multimodal_vs_baseline":
+        parts = []
+        for sid, g in rows.groupby("feature_set"):
+            d = g.set_index("metric")
+            ci = "" if pd.isna(d.loc["precision_at_1pct", "ci_lo_pct"]) else f" (paired difference vs F0 95% CI {d.loc['precision_at_1pct','ci_lo_pct']} to {d.loc['precision_at_1pct','ci_hi_pct']} pp)"
+            parts.append(f"{sid}: precision@1% {d.loc['precision_at_1pct','value_pct']}%{ci}, average precision {d.loc['average_precision','value_pct']}%")
+        text = (f"Extra-data experiment, {params['period'].replace('_multimodal','')} weeks, strict single-block target: " + "; ".join(parts) +
+                ". F0 is the production feature set, F3 adds 311 water and sewer complaints. An interval that includes 0 means no demonstrated gain. Exploratory.")
     else:
         parts = []
         for model, g in rows.groupby("model"):

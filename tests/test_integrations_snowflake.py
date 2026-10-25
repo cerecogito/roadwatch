@@ -43,7 +43,7 @@ def test_loader_sql_is_parameterised():
 @real
 def test_curated_table_is_versioned_and_local_brief_matches_saved_figures():
     df = se.build_curated()
-    assert df["evidence_id"].is_unique and set(df["family"]) == {"capture", "model"}
+    assert df["evidence_id"].is_unique and {"capture", "model"} <= set(df["family"]) <= {"capture", "model", "multimodal"}
     assert se.evidence_version(df) == se.evidence_version(se.build_curated())              # deterministic version
     out = se.local_brief(df, "capture_by_period", {"period": "test", "capacity": "1pct"})
     assert "13.5% (12.5-14.5)" in out["brief"] and out["unverified_numbers"] == [] and out["mode"] == "local"
@@ -96,3 +96,14 @@ def test_disabled_and_failing_remote_fall_back_to_local(monkeypatch, tmp_path):
     monkeypatch.setenv("SNOWFLAKE_PAT", "p" * 9)
     boom = se.SnowflakeEvidence(post=lambda *a, **k: (_ for _ in ()).throw(TimeoutError()), cache_dir=tmp_path / "z")
     assert "failed" in boom.brief(df, "capture_by_period", {"period": "test", "capacity": "1pct"})["note"]
+
+
+@real
+def test_multimodal_brief_uses_the_curated_experiment_rows():
+    df = se.build_curated()
+    if "multimodal" not in set(df["family"]):
+        pytest.skip("multimodal comparison not generated")
+    out = se.local_brief(df, "multimodal_vs_baseline", {"period": "validation_multimodal"})
+    assert "F0" in out["brief"] and "F3" in out["brief"] and "no demonstrated gain" in out["brief"] and out["unverified_numbers"] == []
+    with pytest.raises(ValueError):
+        se.check_request("multimodal_vs_baseline", {"period": "anything else"})

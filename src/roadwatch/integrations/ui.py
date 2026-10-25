@@ -85,6 +85,8 @@ def render(st, paths, week, cap, list_key, wl) -> None:
     t = st.selectbox("Brief type", list(TEMPLATES), format_func=lambda k: TEMPLATES[k][2])
     if t == "capture_by_period":
         p = {"period": st.selectbox("Period", ["test", "validation", "march_2026"]), "capacity": st.selectbox("Capacity", ["0.5pct", "1pct", "2pct"], index=1)}
+    elif t == "multimodal_vs_baseline":
+        p = {"period": st.selectbox("Experiment period", ["validation_multimodal", "test_multimodal"], help="Exploratory: the test weeks were inspected during earlier development")}
     else:
         p = {"target": st.selectbox("Target", ["primary", "multi_block"]), "period": st.selectbox("Evaluation period", ["overall", "march_2026_stress"])}
     if st.button("Generate evidence brief", key="rw_brief"):

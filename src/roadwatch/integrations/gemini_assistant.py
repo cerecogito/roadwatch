@@ -98,6 +98,24 @@ def local_answer(question: str, tools: EvidenceTools, week: str | None = None, c
             else:
                 parts.append(f"Block {d['block_id']} is not on the {capacity} worklist for {d['week']}; it ranks {d['within_week_rank_of_all_blocks']} "
                              f"of {d['blocks_ranked']:,} blocks that week.")
+    if bid and week and any(k in q for k in ("nearby", "context", "water", "sewer", "drain", "hydrant", "flood", "infrastructure", "main break")):
+        b = int([g for g in bid.groups() if g][0])
+        r = run("get_block_context", {"block_id": b, "week": week})
+        if "error" in r:
+            parts.append(r["error"])
+        else:
+            d = r["data"]
+            parts.append(f"Nearby 311 complaints for block {b} before {d['week']}: " + "; ".join(
+                f"{v['on_block_365d']} {v['label']} on the block and {v['within_300ft_365d']} within 300 ft in the past year" for v in d["groups"].values())
+                + f". {d['note']}")
+    if any(k in q for k in ("multimodal", "terrain", "experiment", "extra data", "catboost", "improve the model", "did the new")):
+        for stage in ("validation", "test"):
+            r = run("get_multimodal_results", {"stage": stage})
+            if "data" in r:
+                d = r["data"]
+                parts.append(f"{stage.capitalize()} ({d['weeks']} weeks): " + "; ".join(
+                    f"{k}: AP {v['average_precision']}, precision@1% {v['precision_1pct']}" + (f" (paired difference vs F0 95% CI {v['paired_precision_diff_vs_F0_ci95'][0]:+.4f} to {v['paired_precision_diff_vs_F0_ci95'][1]:+.4f})" if v["paired_precision_diff_vs_F0_ci95"] else "")
+                    for k, v in d["feature_sets"].items()) + ". " + d["meaning"])
     if any(k in q for k in ("compare", "policy", "policies", "strict", "non-adjacent", "nonadjacent", "capture", "differ")):
         period = "march_2026" if ("march" in q or "surge" in q) else ("validation" if "validation" in q else "test")
         r = run("compare_inspection_policies", {"period": period, "capacity": capacity})

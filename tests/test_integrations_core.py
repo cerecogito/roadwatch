@@ -54,9 +54,9 @@ def test_tool_schema_validation_rejects_bad_input():
     assert tools.call("get_metric_definition", {"metric": "relative_score"})["data"]["definition"].startswith("The model's raw ranking score")
 
 
-def test_exposed_tools_are_exactly_the_five_read_only_ones():
-    assert set(et.SCHEMAS) == {"get_block_evidence", "get_worklist_position", "compare_inspection_policies",
-                               "get_metric_definition", "get_historical_period_results"}
+def test_exposed_tools_are_exactly_the_seven_read_only_ones():
+    assert set(et.SCHEMAS) == {"get_block_evidence", "get_worklist_position", "compare_inspection_policies", "get_metric_definition",
+                               "get_historical_period_results", "get_block_context", "get_multimodal_results"}
 
 
 @real
@@ -106,7 +106,7 @@ def test_gemini_path_executes_tool_in_application_and_flags_invented_numbers(mon
     assert "99.9" in a.unverified_numbers                                   # not in any tool result -> flagged
     second = mc.calls[1]
     assert second["previous_interaction_id"] == "i1" and second["input"][0]["type"] == "function_result"
-    assert all(t["name"] in et.SCHEMAS for t in mc.calls[0]["tools"]) and len(mc.calls[0]["tools"]) == 5
+    assert all(t["name"] in et.SCHEMAS for t in mc.calls[0]["tools"]) and len(mc.calls[0]["tools"]) == 7
 
 
 @real

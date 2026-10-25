@@ -178,6 +178,13 @@ if view == VIEWS["map"]:
         st.write(f"Model drivers (LightGBM contributions, supporting evidence only, not causes): {r['model_drivers']}")
         st.caption(f"Road attributes: length {r['length_m']:.0f} m | travel lanes {r['travel_lanes']} | width {r['street_width_ft']} ft | "
                    f"truck route: {'yes' if pd.notna(r['truck_route_type']) else 'no'} | bike lane: {'yes' if pd.notna(r['bike_lane']) else 'no'}")
+        try:
+            from roadwatch.multimodal import context as mm_ctx             # optional experimental table; never used by the ranking
+            ctx = mm_ctx.infra_context(PATHS, int(r["block_id"]), week)
+        except Exception:                                                   # missing optional data must never break the page
+            ctx = None
+        if ctx:
+            st.caption("Context only (not used by the model): " + mm_ctx.infra_line(ctx) + ". These are 311 complaints, not confirmed leaks or flooding.")
     cap_tag = f"{cap * 100:g}pct" if cap is not None else f"K{k_custom}"          # no '%' in file names (Stage 7)
     stem = f"roadwatch_worklist_{week}_{list_key}_{cap_tag}"
     d1, d2 = st.columns(2)
