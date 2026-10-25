@@ -78,8 +78,49 @@ def missing(e: dd.MissingOutput):
     st.stop()
 
 
-# ---------------- header & controls ----------------
-st.title("RoadWatch: Brooklyn pothole-report inspection prioritisation")
+# ---------------- styling (colours/fonts in .streamlit/config.toml; this adds the chunky card look) ----------------
+INK, TOMATO = "#111111", "#E0532C"
+st.html(f"""<style>
+.stApp h1, .stApp h2, .stApp h3, [data-testid="stMetricValue"], .rw-headline {{
+  font-stretch: 125%; font-weight: 900 !important; text-transform: uppercase; letter-spacing: -.01em; }}
+[data-testid="stHeader"] {{ background: transparent; }}
+[data-testid="stSidebar"] {{ border-right: 3px solid {INK}; }}
+[data-testid="stSidebar"] h2 {{ font-size: 1.15rem; }}
+/* white cards, black outline, tomato offset shadow */
+[data-testid="stMetric"], [data-testid="stDataFrame"], [data-testid="stVegaLiteChart"],
+[data-testid="stDeckGlJsonChart"], [data-testid="stExpander"] details {{
+  background: #fff; border: 3px solid {INK}; border-radius: 16px; box-shadow: 7px 7px 0 {TOMATO}; }}
+[data-testid="stMetric"] {{ padding: 14px 18px; }}
+[data-testid="stMetric"] label p {{ text-transform: uppercase; font-weight: 700; font-size: .75rem; letter-spacing: .04em; }}
+[data-testid="stMetricValue"] {{ font-size: 1.6rem; }}
+[data-testid="stDataFrame"], [data-testid="stDeckGlJsonChart"] {{ overflow: hidden; }}
+[data-testid="stVegaLiteChart"] {{ padding: 12px; }}
+[data-testid="stVegaLiteChart"] svg {{ background-color: #fff !important; }}
+[data-testid="stAlertContainer"] {{ border: 3px solid {INK}; border-radius: 14px; box-shadow: 5px 5px 0 {INK}; background: #fff; color: {INK}; }}
+/* tomato buttons with black outline + hard shadow */
+.stButton button, .stDownloadButton button {{
+  background: {TOMATO}; color: #fff; border: 3px solid {INK}; border-radius: 10px; box-shadow: 4px 4px 0 {INK};
+  font-stretch: 125%; font-weight: 900; text-transform: uppercase; transition: transform .08s, box-shadow .08s; }}
+.stButton button:hover, .stDownloadButton button:hover {{ color: #fff; border-color: {INK}; transform: translate(-2px, -2px); box-shadow: 6px 6px 0 {INK}; }}
+.stButton button:active, .stDownloadButton button:active {{ transform: translate(3px, 3px); box-shadow: 1px 1px 0 {INK}; }}
+/* view switcher as the site nav: uppercase links, active one becomes the tomato "SHOP" pill */
+.st-key-nav {{ align-items: center; }}
+.st-key-nav [role="radiogroup"] {{ flex-wrap: wrap; gap: 6px 8px; justify-content: center; }}
+.st-key-nav label[data-testid="stRadioOption"] > div > div:not([data-testid]) {{ display: none; }}
+.st-key-nav label[data-testid="stRadioOption"] {{ padding: 8px 14px; border: 3px solid transparent; border-radius: 10px; cursor: pointer; }}
+.st-key-nav label[data-testid="stRadioOption"] p {{ font-stretch: 125%; font-weight: 900; text-transform: uppercase; font-size: .85rem; }}
+.st-key-nav label[data-selected="true"] {{ background: {TOMATO}; border-color: {INK}; box-shadow: 4px 4px 0 {INK}; }}
+.st-key-nav label[data-selected="true"] p {{ color: #fff; }}
+/* logo + headline */
+.rw-logo {{ text-align: center; line-height: .9; margin-top: -1.5rem; }}
+.rw-logo b {{ font-size: clamp(2.6rem, 6vw, 4.2rem); font-stretch: 125%; font-weight: 900; color: #fff;
+  -webkit-text-stroke: 7px {INK}; paint-order: stroke fill; text-shadow: 5px 5px 0 {INK}; }}
+.rw-logo i {{ display: inline-block; font-style: normal; background: {INK}; color: #fff; padding: 2px 14px 4px;
+  border-radius: 8px; font-weight: 900; font-stretch: 125%; transform: rotate(-3deg); margin-top: 4px; }}
+.rw-headline {{ text-align: center; font-size: clamp(1.4rem, 3.4vw, 2.6rem); line-height: 1.05; margin: 18px 0 22px; color: {INK}; }}
+</style>""")
+st.html('<div class="rw-logo"><b>ROADWATCH&#10022;</b><br><i>BROOKLYN</i></div>'
+        '<div class="rw-headline">Pothole-report inspection prioritisation</div>')
 st.warning("**Historical evaluation and decision-support prototype - not a live municipal deployment.** "
            "Predictions forecast *311 pothole reports*, not confirmed road failures. Capacity scenarios are experimental, "
            "not NYC budgets. No cost, savings or failures-prevented figures exist or are shown.", icon=":material/warning:")
@@ -120,7 +161,7 @@ except dd.MissingOutput as e:
     missing(e)
 
 VIEWS = {"map": "Inspection worklist & map", "policy": "Decision-policy comparison", "volume": "Weekly volume & scenarios",
-         "evidence": "Evidence & limitations", "data": "Data provenance"}
+         "evidence": "Evidence & limitations", "data": "Data provenance", "extras": "Assistant & integrations (optional)"}
 req_view = st.query_params.get("view", "map")
 view = st.radio("View", list(VIEWS.values()), index=list(VIEWS).index(req_view) if req_view in VIEWS else 0, horizontal=True,
                 label_visibility="collapsed")   # only the active view is computed (faster than st.tabs)
@@ -153,7 +194,7 @@ if view == VIEWS["map"]:
         legend = " ".join(f"<span style='color:rgb{tuple(c)}'>&#9632;</span> {n}" for _, n, c in dm.BANDS)
         st.markdown(f"{legend} &nbsp; <span style='color:rgb{tuple(dm.SELECTED_COLOR)}'>&#9632;</span> **selected for inspection**",
                     unsafe_allow_html=True)
-        st.caption(f"Map shows {len(sel):,} selected blocks (blue, thick) and {len(bg):,} background blocks. "
+        st.caption(f"Map shows {len(sel):,} selected blocks (black, thick) and {len(bg):,} background blocks. "
                    "Basemap tiles load from CARTO if online; block lines need no network.")
     with right:
         q = st.text_input("Search street, ZIP or block id", "")
@@ -178,6 +219,13 @@ if view == VIEWS["map"]:
         st.write(f"Model drivers (LightGBM contributions, supporting evidence only, not causes): {r['model_drivers']}")
         st.caption(f"Road attributes: length {r['length_m']:.0f} m | travel lanes {r['travel_lanes']} | width {r['street_width_ft']} ft | "
                    f"truck route: {'yes' if pd.notna(r['truck_route_type']) else 'no'} | bike lane: {'yes' if pd.notna(r['bike_lane']) else 'no'}")
+        try:
+            from roadwatch.multimodal import context as mm_ctx             # optional experimental table; never used by the ranking
+            ctx = mm_ctx.infra_context(PATHS, int(r["block_id"]), week)
+        except Exception:                                                   # missing optional data must never break the page
+            ctx = None
+        if ctx:
+            st.caption("Context only (not used by the model): " + mm_ctx.infra_line(ctx) + ". These are 311 complaints, not confirmed leaks or flooding.")
     cap_tag = f"{cap * 100:g}pct" if cap is not None else f"K{k_custom}"          # no '%' in file names (Stage 7)
     stem = f"roadwatch_worklist_{week}_{list_key}_{cap_tag}"
     d1, d2 = st.columns(2)
@@ -271,13 +319,13 @@ if view == VIEWS["volume"]:
     hist["origin"] = pd.to_datetime(hist["origin"])
     t = te[te["week_status"] == "observable"].copy()
     t["origin"] = pd.to_datetime(t["origin"])
-    band = alt.Chart(t).mark_area(opacity=0.25, color="#e6550d").encode(x="origin:T", y="lo:Q", y2="hi:Q")
-    fc = alt.Chart(t).mark_line(color="#e6550d", strokeDash=[4, 3]).encode(x="origin:T", y=alt.Y("pred:Q", title="reports per week"),
+    band = alt.Chart(t).mark_area(opacity=0.25, color=TOMATO).encode(x="origin:T", y="lo:Q", y2="hi:Q")
+    fc = alt.Chart(t).mark_line(color=TOMATO, strokeDash=[4, 3]).encode(x="origin:T", y=alt.Y("pred:Q", title="reports per week"),
                                                                              tooltip=[alt.Tooltip("origin:T"), alt.Tooltip("pred:Q", format=".0f"),
                                                                                       alt.Tooltip("lo:Q", format=".0f"), alt.Tooltip("hi:Q", format=".0f")])
-    act = alt.Chart(hist).mark_line(color="#3182bd").encode(x=alt.X("origin:T", title="forecast week"), y="y:Q",
+    act = alt.Chart(hist).mark_line(color=INK).encode(x=alt.X("origin:T", title="forecast week"), y="y:Q",
                                                             tooltip=[alt.Tooltip("origin:T"), alt.Tooltip("y:Q", title="actual reports")])
-    st.altair_chart((act + band + fc).properties(height=380, title="Actual weekly Brooklyn pothole reports (blue) and walk-forward forecast with 80% interval (orange)"),
+    st.altair_chart((act + band + fc).properties(height=380, title="Actual weekly Brooklyn pothole reports (black) and walk-forward forecast with 80% interval (red)"),
                     use_container_width=True)
     rows = []
     for per_, lab in (("overall", "All test weeks"), ("excluding_march_2026", "Excluding March 2026"), ("march_2026_stress", "March 2026")):
@@ -343,6 +391,11 @@ if view == VIEWS["evidence"]:
         "- **Multi-block target.** A report counts on every plausible candidate block (intersection-adjacent blocks, or alternative "
         "blockface locations for ambiguous descriptions).")
     st.caption("Sources: outputs/stage4/test_results.csv, bootstrap_comparisons.json, outputs/stage5/*.")
+
+# ============================== 6. optional integrations ==============================
+if view == VIEWS["extras"]:
+    from roadwatch.integrations import ui as integrations_ui          # imported only for this view
+    integrations_ui.render(st, PATHS, week, cap, list_key, wl)
 
 # ============================== 5. provenance ==============================
 if view == VIEWS["data"]:

@@ -27,6 +27,8 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest==9.1.1"]
+# Optional integration SDKs (src/roadwatch/integrations). Everything works without them; see docs/final/integration_runbook.md.
+integrations = ["google-genai==2.33.0", "psycopg[binary]==3.3.6"]
 
 [project.scripts]
 roadwatch = "roadwatch.cli:main"
