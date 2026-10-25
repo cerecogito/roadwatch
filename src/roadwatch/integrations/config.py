@@ -21,12 +21,8 @@ VERIFICATION = ROOT / "outputs" / "integrations" / "verification.json"
 # name -> (flag variable, required env vars, label)
 SPECS = {
     "gemini": ("ROADWATCH_ENABLE_GEMINI", ("GEMINI_API_KEY",), "Gemini evidence assistant"),
-    "elevenlabs": ("ROADWATCH_ENABLE_ELEVENLABS", ("ELEVENLABS_API_KEY",), "ElevenLabs audio narration"),
     "tiger": ("ROADWATCH_ENABLE_TIGER", ("TIGER_DATABASE_URL",), "Tiger Data time-series layer"),
     "snowflake": ("ROADWATCH_ENABLE_SNOWFLAKE", ("SNOWFLAKE_ACCOUNT", "SNOWFLAKE_PAT"), "Snowflake evidence briefs"),
-    "solana": ("ROADWATCH_ENABLE_SOLANA", ("SOLANA_KEYPAIR_PATH",), "Solana Devnet receipts"),
-    "presage": ("ROADWATCH_ENABLE_PRESAGE", (), "Presage Human Factors Lab"),
-    "vultr": ("ROADWATCH_ENABLE_VULTR", (), "Vultr deployment"),
 }
 TRUE = {"1", "true", "yes", "on"}
 
@@ -42,16 +38,31 @@ class Status:
     extras: dict = field(default_factory=dict)
 
 
+_ENV_LOADED = False
+
+
+def _load_env() -> None:
+    """Read the git-ignored .env once (existing environment variables win). Values are never logged."""
+    global _ENV_LOADED
+    if not _ENV_LOADED:
+        _ENV_LOADED = True
+        from ..env import load_dotenv
+        load_dotenv(ROOT / ".env")
+
+
 def flag(name: str) -> bool:
+    _load_env()
     return os.environ.get(SPECS[name][0], "").strip().lower() in TRUE
 
 
 def missing_credentials(name: str) -> tuple[str, ...]:
+    _load_env()
     return tuple(v for v in SPECS[name][1] if not os.environ.get(v, "").strip())
 
 
 def secret(var: str) -> str | None:
     """Read a credential from the environment. The value must never be logged or written anywhere."""
+    _load_env()
     return os.environ.get(var, "").strip() or None
 
 
@@ -76,12 +87,6 @@ def record_verification(name: str, ok: bool, detail: str, evidence: dict | None 
 
 def status(name: str) -> Status:
     _, req, label = SPECS[name]
-    if name == "presage":
-        return Status(name, label, "unsupported",
-                      "No Python SDK: SmartSpectra targets Android, iOS, Node.js/Electron and C++. The camera feature is not "
-                      "implemented; see docs/final/integration_plan.md.")
-    if name == "vultr":
-        return Status(name, label, "disabled", "Deployment files only (Dockerfile, compose). No cloud instance has been provisioned.")
     if not flag(name):
         return Status(name, label, "disabled", f"Set {SPECS[name][0]}=1 to enable.")
     miss = missing_credentials(name)

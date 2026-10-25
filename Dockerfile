@@ -14,9 +14,9 @@ RUN pip install --no-deps -e .
 
 # optional integration SDKs (only needed if you enable those features)
 ARG WITH_INTEGRATIONS=0
-RUN if [ "$WITH_INTEGRATIONS" = "1" ]; then pip install google-genai psycopg[binary] solders; fi
+RUN if [ "$WITH_INTEGRATIONS" = "1" ]; then pip install google-genai psycopg[binary]; fi
 
-# unprivileged user; outputs/integrations is the only writable path (audio cache, receipts, caches)
+# unprivileged user; outputs/integrations is the only writable path (caches)
 RUN useradd --create-home --uid 10001 roadwatch && mkdir -p /app/data /app/outputs/integrations && chown -R roadwatch /app/outputs/integrations
 USER roadwatch
 

@@ -137,10 +137,8 @@ Off by default and separate from the pipeline; the application runs unchanged wi
 | Integration | What it adds |
 |---|---|
 | Gemini | Evidence assistant that calls five read-only tools (local fallback without a key) |
-| ElevenLabs | On-request audio narration of a block's existing evidence |
 | Tiger Data | Time-series serving layer (TimescaleDB) with a local fallback |
 | Snowflake | Reproducible, number-checked evidence briefs from a curated table |
-| Solana Devnet | Worklist integrity receipts: `python -I -m roadwatch.integrations.solana_receipt create\|anchor\|verify` |
 
 Integrations never change scores, rankings or worklists. See `src/roadwatch/integrations/` and `.env.example`; deployment files are `Dockerfile` and `docker-compose.yml`.
 ## Limitations

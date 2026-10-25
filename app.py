@@ -178,24 +178,6 @@ if view == VIEWS["map"]:
         st.write(f"Model drivers (LightGBM contributions, supporting evidence only, not causes): {r['model_drivers']}")
         st.caption(f"Road attributes: length {r['length_m']:.0f} m | travel lanes {r['travel_lanes']} | width {r['street_width_ft']} ft | "
                    f"truck route: {'yes' if pd.notna(r['truck_route_type']) else 'no'} | bike lane: {'yes' if pd.notna(r['bike_lane']) else 'no'}")
-        with st.expander("Audio explanation (optional)"):
-            from roadwatch.integrations import config as icfg, elevenlabs_tts as el        # imported only when this panel is opened
-            ev_row = {"on_worklist": True, "rank": int(r["rank"]), "street": " ".join(str(r["full_street_name"]).split()), "zip": r["zip"],
-                      "priority": r["priority"], "week": str(week), "reports_365d": int(r["reports_365d"]), "reports_30d": int(r["reports_30d"]),
-                      "length_m": round(float(r["length_m"])), "travel_lanes": r["travel_lanes"] if pd.notna(r["travel_lanes"]) else None,
-                      "block_id": int(r["block_id"])}
-            text = el.block_narration(ev_row)
-            st.write(text)                                                                  # the readable text equivalent is always shown
-            st.caption("The narration reads existing evidence aloud. It is not an independent prediction. Audio is generated only when you press the button, "
-                       "then cached; only this short text is sent to ElevenLabs.")
-            if icfg.status("elevenlabs").status in ("disabled", "missing_credentials"):
-                st.info("Audio is off (" + icfg.status("elevenlabs").detail + "). The text above is the full explanation.")
-            elif st.button("Generate and play audio", key=f"tts_{r['block_id']}_{week}"):
-                with st.spinner("Requesting audio..."):
-                    audio, msg = el.Narrator().synthesize(text)
-                st.caption(msg)
-                if audio:
-                    st.audio(audio, format="audio/mp3")
     cap_tag = f"{cap * 100:g}pct" if cap is not None else f"K{k_custom}"          # no '%' in file names (Stage 7)
     stem = f"roadwatch_worklist_{week}_{list_key}_{cap_tag}"
     d1, d2 = st.columns(2)

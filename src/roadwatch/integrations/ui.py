@@ -2,19 +2,16 @@
 remote call until the user presses a button."""
 from __future__ import annotations
 
-import json
-
 import altair as alt
 import pandas as pd
 
-from .. import dashboard_data as dd
-from . import config, solana_receipt as sr, tiger_data as td
+from . import config, tiger_data as td
 from .evidence_tools import CAPS, EvidenceTools
 from .gemini_assistant import Assistant
 from .snowflake_evidence import SnowflakeEvidence, TEMPLATES, build_curated
 
 BADGE = {"verified": "Verified with the real service", "configured_unverified": "Configured, not yet verified", "disabled": "Disabled (default)",
-         "missing_credentials": "Enabled, credentials missing", "failed": "Last real test failed", "unsupported": "Not supported here"}
+         "missing_credentials": "Enabled, credentials missing", "failed": "Last real test failed"}
 
 
 def render(st, paths, week, cap, list_key, wl) -> None:
@@ -99,37 +96,3 @@ def render(st, paths, week, cap, list_key, wl) -> None:
             st.warning("Unverified numbers: " + ", ".join(out["unverified_numbers"]))
         with st.expander("Provenance"):
             st.json(out["provenance"])
-
-    # ---------------- receipts
-    st.subheader("Worklist integrity receipt")
-    st.caption("A local manifest checksum is not a blockchain transaction. A receipt is shown as confirmed only if a genuine Solana Devnet "
-               "transaction exists. The manifest holds checksums and the model version only: no street-level records.")
-    csv = dd.to_csv_bytes(wl)
-    man = sr.build_manifest(csv, str(week), list_key, cap_s.replace("%", "pct"), str(wl["model_version"].iloc[0]))
-    st.code(sr.memo_text(man), language="text")
-    st.caption("Digest above includes the generation time and changes each run; saving freezes it.")
-    if st.button("Save manifest (local only)", key="rw_man"):
-        sr.RECEIPT_DIR.mkdir(parents=True, exist_ok=True)
-        mp = sr.RECEIPT_DIR / f"{week}_{list_key}_{cap_s.replace('%', 'pct')}.manifest.json"
-        mp.write_text(json.dumps(man, indent=1, sort_keys=True), encoding="utf-8")
-        st.session_state["rw_manifest"] = str(mp)
-        st.success(f"Saved {mp.name}. Verify later with: python -I -m roadwatch.integrations.solana_receipt verify --manifest <file> --worklist <csv>")
-    mp = st.session_state.get("rw_manifest")
-    if mp:
-        rcp = sr.Path(mp).with_name(sr.Path(mp).name.replace(".manifest.json", ".receipt.json"))
-        if rcp.exists():
-            rc = json.loads(rcp.read_text(encoding="utf-8"))
-            st.success(f"Confirmed on Solana Devnet ({rc['confirmation']}). [Open in explorer]({rc['explorer']})")
-        elif config.status("solana").status in ("configured_unverified", "verified"):
-            ok = st.checkbox("I confirm I want to submit this digest to Solana Devnet (uses a Devnet-funded key I control)")
-            if st.button("Anchor on Devnet", key="rw_anchor", disabled=not ok):
-                with st.spinner("Submitting and waiting for confirmation..."):
-                    res = sr.anchor(sr.Path(mp), confirm=True)
-                (st.success if res["status"] == "confirmed" else st.error)(res.get("explorer") or f"{res['status']}: {res.get('reason')}")
-        else:
-            st.caption("On-chain anchoring is off: " + config.status("solana").detail)
-
-    # ---------------- human factors lab
-    st.subheader("Human Factors Lab (experimental, disabled)")
-    st.info(config.status("presage").detail + " No camera is accessed and no measurement is produced. A consent-based study would need a supported SDK; "
-            "see the integration plan.", icon=":material/science:")

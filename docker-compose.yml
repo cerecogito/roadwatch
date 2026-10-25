@@ -17,7 +17,7 @@ services:
     volumes:
       - ./data:/app/data:ro                           # built pipeline data (read-only)
       - ./outputs:/app/outputs:ro                     # evaluation outputs (read-only)
-      - roadwatch_integrations:/app/outputs/integrations   # writable: audio cache, receipts, caches
+      - roadwatch_integrations:/app/outputs/integrations   # writable: caches
     read_only: true
     tmpfs:
       - /tmp

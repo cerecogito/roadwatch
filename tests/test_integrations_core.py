@@ -16,6 +16,7 @@ real = pytest.mark.skipif(not (ROOT / "data" / "processed" / "stage5" / "worklis
 
 @pytest.fixture(autouse=True)
 def clean_env(monkeypatch):
+    monkeypatch.setattr(config, "_ENV_LOADED", True)         # hermetic: ignore the developer's real .env
     for _, (flag, req, _) in config.SPECS.items():
         monkeypatch.delenv(flag, raising=False)
         for v in req:
@@ -25,8 +26,7 @@ def clean_env(monkeypatch):
 
 def test_default_state_is_disabled_and_local():
     st = {s.name: s.status for s in config.all_statuses()}
-    assert st["gemini"] == st["elevenlabs"] == st["tiger"] == st["snowflake"] == st["solana"] == "disabled"
-    assert st["presage"] == "unsupported" and st["vultr"] == "disabled"
+    assert st == {"gemini": "disabled", "tiger": "disabled", "snowflake": "disabled"}
 
 
 def test_status_transitions(monkeypatch, tmp_path):
