@@ -1,0 +1,18 @@
+# Shades-by-Niko style: sunshine yellow page, white cards, black ink, tomato accents.
+[theme]
+base = "light"
+primaryColor = "#E0532C"
+backgroundColor = "#FFE014"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#111111"
+linkColor = "#111111"
+borderColor = "#111111"
+showWidgetBorder = true
+baseRadius = "12px"
+font = "Archivo:https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap"
+headingFont = "Archivo"
+chartCategoricalColors = ["#E0532C", "#111111", "#2E9E4F", "#2F6FD6", "#C2185B", "#F59E0B"]
+
+[theme.sidebar]
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#FFF6B0"
