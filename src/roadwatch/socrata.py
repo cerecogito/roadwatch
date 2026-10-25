@@ -9,7 +9,7 @@ from pathlib import Path
 from .config import SOCRATA_DOMAIN
 from .http import InvalidResponse, RetryingClient
 from .sources import Partition, SourceSpec
-from .storage import read_gz, schema_fingerprint, utc_iso, write_gz, write_json
+from .storage import read_gz, rename_dir, schema_fingerprint, utc_iso, write_gz, write_json
 
 log = logging.getLogger(__name__)
 
@@ -107,7 +107,7 @@ def fetch_partition(client: RetryingClient, spec: SourceSpec, part: Partition, p
             write_json(tmp / "_SUCCESS.json", record)
             if part_dir.exists():  # stale directory without _SUCCESS from an older interrupted run
                 shutil.rmtree(part_dir)
-            tmp.rename(part_dir)
+            rename_dir(tmp, part_dir)
             return record
         msg = (f"{spec.key}/{part.name} attempt {attempt}: expected {expected}, fetched {fetched}, "
                f"unique {len(ids)}, duplicate ids across pages {dup_ids}")

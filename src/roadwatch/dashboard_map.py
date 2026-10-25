@@ -7,7 +7,7 @@ import pydeck as pdk
 # relative-risk bands (within-week percentile of the model score); colours are ranks, not probabilities
 BANDS = [(99.0, "Top 1%", [189, 0, 38]), (95.0, "Top 1-5%", [240, 59, 32]), (80.0, "Top 5-20%", [253, 141, 60]),
          (0.0, "Remaining 80%", [190, 190, 190])]
-SELECTED_COLOR = [33, 102, 172]
+SELECTED_COLOR = [17, 17, 17]
 VIEW = pdk.ViewState(latitude=40.645, longitude=-73.945, zoom=11, pitch=0)
 
 
@@ -46,4 +46,4 @@ def deck(bg: pd.DataFrame, sel: pd.DataFrame) -> pdk.Deck:
                   auto_highlight=True),
     ]
     return pdk.Deck(layers=layers, initial_view_state=VIEW, map_provider="carto", map_style=pdk.map_styles.CARTO_LIGHT,
-                    tooltip={"html": "{tooltip}", "style": {"fontSize": "12px"}})
+                    tooltip={"html": "{tooltip}", "style": {"fontSize": "12px", "background": "#fff", "color": "#111", "border": "3px solid #111", "borderRadius": "10px"}})

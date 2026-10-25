@@ -6,6 +6,7 @@ import gzip
 import hashlib
 import json
 import os
+import time
 from pathlib import Path
 
 
@@ -38,6 +39,17 @@ def atomic_write_bytes(path: Path, data: bytes) -> None:
         f.flush()
         os.fsync(f.fileno())
     os.replace(tmp, path)
+
+
+def rename_dir(src: Path, dst: Path, tries: int = 20) -> None:
+    """Rename with retries: on Windows, antivirus/indexer briefly lock freshly written files (WinError 5)."""
+    for i in range(tries):
+        try:
+            return os.replace(src, dst)
+        except PermissionError:
+            if i == tries - 1:
+                raise
+            time.sleep(0.25 * (i + 1))
 
 
 def write_json(path: Path, obj) -> None:

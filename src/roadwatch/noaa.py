@@ -10,7 +10,7 @@ import pandas as pd
 
 from .http import InvalidResponse, RetryingClient
 from .sources import NOAA_ELEMENTS, Partition, SourceSpec
-from .storage import read_gz, utc_iso, write_gz, write_json
+from .storage import read_gz, rename_dir, utc_iso, write_gz, write_json
 
 
 def request_params(spec: SourceSpec, part: Partition) -> dict:
@@ -55,7 +55,7 @@ def fetch_partition(client: RetryingClient, spec: SourceSpec, part: Partition, p
     write_json(tmp / "_SUCCESS.json", record)
     if part_dir.exists():
         shutil.rmtree(part_dir)
-    tmp.rename(part_dir)
+    rename_dir(tmp, part_dir)
     return record
 
 
